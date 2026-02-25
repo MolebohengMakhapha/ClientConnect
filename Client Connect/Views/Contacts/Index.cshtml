@@ -1,0 +1,128 @@
+﻿@{
+    ViewBag.Title = "Contacts";
+}
+
+<div class="d-flex justify-content-between align-items-center page-header">
+    <h2><i class="fas fa-address-book mr-2 text-primary"></i>Contacts</h2>
+    <a href="/Contacts/Create" class="btn btn-primary">
+        <i class="fas fa-plus mr-1"></i> New Contact
+    </a>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            Swal.fire({ icon: 'success', title: 'Success', text: '@TempData["SuccessMessage"]', timer: 3000, showConfirmButton: false });
+        });
+    </script>
+}
+
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-list mr-2"></i>Contact List
+    </div>
+    <div class="card-body">
+        <table id="contactsTable" class="table table-hover w-100">
+            <thead>
+                <tr>
+                    <th style="text-align:left">Name</th>
+                    <th style="text-align:left">Surname</th>
+                    <th style="text-align:left">Email Address</th>
+                    <th style="text-align:center">No. of Linked Clients</th>
+                    <th style="text-align:left"></th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- DataTables CSS & JS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap4.min.css" />
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
+
+    <script>
+        var table;
+
+        $(document).ready(function () {
+            table = $('#contactsTable').DataTable({
+                ajax: {
+                    url: '/Contacts/GetAll',
+                    type: 'GET',
+                    dataSrc: ''
+                },
+                order: [[0, 'asc'], [1, 'asc']],  
+                language: {
+                    emptyTable: 'No contact(s) found.',
+                    zeroRecords: 'No contact(s) match your search.'
+                },
+                columns: [
+                    { data: 'Name' },
+                    { data: 'Surname' },
+                    { data: 'Email' },
+                    {
+                        data: 'ClientCount',
+                        className: 'text-center',
+                        render: function (data) {
+                            return '<span class="badge badge-success badge-info-count">' + data + '</span>';
+                        }
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        searchable: false,
+                        width: '164px',
+                        render: function (data, type, row) {
+                            return '<a href="/Contacts/Edit/' + row.ContactId + '" class="btn btn-sm btn-outline-secondary">' +
+                                '<i class="fas fa-edit"></i> Edit' +
+                                '</a> ' +
+                                '<button type="button" class="btn btn-sm btn-outline-danger btn-delete-contact" ' +
+                                'data-id="' + row.ContactId + '" ' +
+                                'data-name="' + row.Name + ' ' + row.Surname + '">' +
+                                '<i class="fas fa-trash"></i> Delete' +
+                                '</button>';
+                        }
+                    }
+                ]
+            });
+        });
+
+        // ── Delete ──
+        $(document).on('click', '.btn-delete-contact', function () {
+            var contactId = $(this).data('id');
+            var contactName = $(this).data('name');
+
+            Swal.fire({
+                title: 'Delete Contact?',
+                text: 'Are you sure you want to delete "' + contactName + '"? This cannot be undone.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, Delete',
+                cancelButtonText: 'Cancel'
+            }).then(function (result) {
+                if (result.isConfirmed) {
+                    $.post('/Contacts/Delete', { id: contactId }, function (res) {
+                        if (res.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Deleted!',
+                                text: '"' + contactName + '" has been deleted.',
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(function () {
+                                table.ajax.reload();  
+                            });
+                        } else {
+                            Swal.fire({ icon: 'error', title: 'Error', text: res.message });
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+}

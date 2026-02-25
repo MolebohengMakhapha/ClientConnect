@@ -1,0 +1,252 @@
+﻿@model Client_Connect.ViewModels.ContactFormViewModel
+@{
+    ViewBag.Title = Model.IsNew ? "New Contact" : "Edit Contact - " + Model.Name + " " + Model.Surname;
+}
+
+<div class="d-flex justify-content-between align-items-center page-header">
+    <h2>
+        <i class="fas fa-@(Model.IsNew ? "user-plus" : "user-edit") mr-2 text-primary"></i>
+        @ViewBag.Title
+    </h2>
+    <a href="/Contacts" class="btn btn-outline-secondary"><i class="fas fa-arrow-left mr-1"></i>Back</a>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            Swal.fire({ icon: 'success', title: 'Success', text: '@TempData["SuccessMessage"]', timer: 3000, showConfirmButton: false });
+        });
+    </script>
+}
+
+<ul class="nav nav-tabs mb-3" id="contactTabs">
+    <li class="nav-item">
+        <a class="nav-link active" data-toggle="tab" href="#tab-general">
+            <i class="fas fa-info-circle mr-1"></i>General
+        </a>
+    </li>
+    @if (!Model.IsNew)
+    {
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#tab-clients">
+                <i class="fas fa-building mr-1"></i>Client(s)
+            </a>
+        </li>
+    }
+</ul>
+
+@using (Html.BeginForm("Save", "Contacts", FormMethod.Post, new { id = "contactForm" }))
+{
+    @Html.AntiForgeryToken()
+    @Html.HiddenFor(m => m.ContactId)
+
+    <div class="tab-content">
+
+        <!-- TAB: General -->
+        <div class="tab-pane fade show active" id="tab-general">
+            <div class="card">
+                <div class="card-body">
+
+                    <div class="form-group">
+                        <label><strong>Name <span class="text-danger">*</span></strong></label>
+                        @Html.TextBoxFor(m => m.Name, new { @class = "form-control", placeholder = "Enter first name", id = "Name" })
+                        <small class="text-danger" id="nameError"></small>
+                        @Html.ValidationMessageFor(m => m.Name, "", new { @class = "text-danger small" })
+                    </div>
+
+                    <div class="form-group">
+                        <label><strong>Surname <span class="text-danger">*</span></strong></label>
+                        @Html.TextBoxFor(m => m.Surname, new { @class = "form-control", placeholder = "Enter surname", id = "Surname" })
+                        <small class="text-danger" id="surnameError"></small>
+                        @Html.ValidationMessageFor(m => m.Surname, "", new { @class = "text-danger small" })
+                    </div>
+
+                    <div class="form-group">
+                        <label><strong>Email <span class="text-danger">*</span></strong></label>
+                        @Html.TextBoxFor(m => m.Email, new { @class = "form-control", placeholder = "Enter email address", id = "Email", type = "email" })
+                        <small class="text-danger" id="emailError"></small>
+                        @Html.ValidationMessageFor(m => m.Email, "", new { @class = "text-danger small" })
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="btnSave">
+                        <i class="fas fa-save mr-1"></i>Save
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: Clients -->
+        @if (!Model.IsNew)
+        {
+            <div class="tab-pane fade" id="tab-clients">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-building mr-2"></i>Linked Clients</span>
+                        <button type="button" class="btn btn-sm btn-light" id="btnAddClient">
+                            <i class="fas fa-link mr-1"></i>Link Client
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <table id="linkedClientsTable" class="table table-hover w-100">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:left">Client Name</th>
+                                    <th style="text-align:left">Client Code</th>
+                                    <th style="text-align:left"></th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@section Scripts {
+    <!-- DataTables CSS & JS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap4.min.css" />
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
+
+    <script>
+    var contactId = @Model.ContactId;
+    var linkedClientsTable;
+
+    $(document).ready(function () {
+
+        // ── Init DataTable ────
+        if (contactId > 0) {
+            linkedClientsTable = $('#linkedClientsTable').DataTable({
+                ajax: {
+                    url: '/Contacts/LinkedClients',
+                    type: 'GET',
+                    data: { contactId: contactId },
+                    dataSrc: ''
+                },
+                order: [[0, 'asc']],
+                language: {
+                    emptyTable: 'No clients found.',
+                    zeroRecords: 'No clients match your search.'
+                },
+                columns: [
+                    { data: 'Name' },
+                    { data: 'ClientCode' },
+                    {
+                        data: null,
+                        orderable: false,
+                        searchable: false,
+                        width: '80px',
+                        render: function (data, type, row) {
+                            return '<a href="#" class="text-danger btn-unlink-client" ' +
+                                       'data-client-id="' + row.ClientId + '" ' +
+                                       'data-client-name="' + row.Name + '">' +
+                                       '<i class="fas fa-unlink mr-1"></i>Unlink' +
+                                   '</a>';
+                        }
+                    }
+                ]
+            });
+        }
+
+        $('#contactForm').on('submit', function (e) {
+            var name    = $('#Name').val().trim();
+            var surname = $('#Surname').val().trim();
+            var email   = $('#Email').val().trim();
+            var emailRx = /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/;
+            var valid   = true;
+
+            $('#nameError').text(''); $('#surnameError').text(''); $('#emailError').text('');
+            $('#Name').removeClass('is-invalid'); $('#Surname').removeClass('is-invalid'); $('#Email').removeClass('is-invalid');
+
+            if (!name) {
+                $('#nameError').text('Name is required.');
+                $('#Name').addClass('is-invalid');
+                valid = false;
+            }
+
+            if (!surname) {
+                $('#surnameError').text('Surname is required.');
+                $('#Surname').addClass('is-invalid');
+                valid = false;
+            }
+
+            if (!email) {
+                $('#emailError').text('Email is required.');
+                $('#Email').addClass('is-invalid');
+                valid = false;
+            } else if (!emailRx.test(email)) {
+                $('#emailError').text('Please enter a valid email address.');
+                $('#Email').addClass('is-invalid');
+                valid = false;
+            }
+
+            if (!valid) {
+                e.preventDefault();
+                Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please fix the highlighted fields.' });
+            }
+        });
+
+        // ── Link Client ──
+        $('#btnAddClient').on('click', function () {
+            $.get('/Contacts/AvailableClients', { contactId: contactId }, function (clients) {
+                if (!clients.length) {
+                    Swal.fire({ icon: 'info', title: 'No Clients Available', text: 'All clients are already linked to this contact.' });
+                    return;
+                }
+
+                var options = clients.map(function (c) {
+                    return '<option value="' + c.ClientId + '">' + c.Name + ' (' + c.ClientCode + ')</option>';
+                }).join('');
+
+                Swal.fire({
+                    title: 'Link a Client',
+                    html: '<select id="swal-client-select" class="form-control">' + options + '</select>',
+                    showCancelButton: true,
+                    confirmButtonText: 'Link',
+                    preConfirm: function () { return $('#swal-client-select').val(); }
+                }).then(function (result) {
+                    if (result.isConfirmed) {
+                        $.post('/Contacts/LinkClient', { contactId: contactId, clientId: result.value }, function (res) {
+                            if (res.success) {
+                                linkedClientsTable.ajax.reload();
+                                Swal.fire({ icon: 'success', title: 'Linked!', timer: 1500, showConfirmButton: false });
+                            } else {
+                                Swal.fire({ icon: 'error', title: 'Error', text: res.message });
+                            }
+                        });
+                    }
+                });
+            });
+        });
+
+        // ── Unlink Client ──
+        $(document).on('click', '.btn-unlink-client', function () {
+            var cid        = $(this).data('client-id');
+            var clientName = $(this).data('client-name');
+
+            Swal.fire({
+                title: 'Unlink Client?',
+                text: 'Are you sure you want to unlink "' + clientName + '"?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Yes, Unlink'
+            }).then(function (result) {
+                if (result.isConfirmed) {
+                    $.post('/Contacts/UnlinkClient', { contactId: contactId, clientId: cid }, function (res) {
+                        if (res.success) {
+                            linkedClientsTable.ajax.reload();
+                            Swal.fire({ icon: 'success', title: 'Unlinked!', timer: 1500, showConfirmButton: false });
+                        } else {
+                            Swal.fire({ icon: 'error', title: 'Error', text: res.message });
+                        }
+                    });
+                }
+            });
+        });
+    });
+    </script>
+}
