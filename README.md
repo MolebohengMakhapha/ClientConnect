@@ -51,63 +51,60 @@ Notes
 ## 📸 Screenshots
 
 ### Home
-![Home](docs/images/Home.png)
+![Home](docs/Home.png)
 
 ---
 
 ### Clients
 
 #### Client List
-![Client List](docs/images/clients-list.png)
+![Client List](docs/Clients%20Index.png)
 
 #### Search
-![Client Search](docs/images/clients-search.png)
+![Client Search](docs/ClientsIndexSearch.png)
 
 #### No Clients Found
-![No Clients Found](docs/images/clients-empty.png)
+![No Clients Found](docs/ClientsIndexNoClientsFound.png)
 
 #### Create Client
-![Create Client](docs/images/clients-create.png)
+![Create Client](docs/ClientsCreate.png)
 
 #### Client Created Successfully
-![Client Created](docs/images/clients-create-success.png)
+![Client Created](docs/ClientsCreateSuccess.png)
 
 #### Edit Client — Contacts Tab (No Contacts Linked)
-![Edit Client No Contacts](docs/images/clients-edit-no-contacts.png)
+![Edit Client No Contacts](docs/ClientsEditContactsFound.png)
 
 #### Delete Warning
-![Client Delete Warning](docs/images/clients-delete-warning.png)
+![Client Delete Warning](docs/ClientDeleteWarning.png)
 
 #### Delete Confirmation
-![Client Delete Confirmation](docs/images/clients-delete-confirm.png)
+![Client Delete Confirmation](docs/ClientDeleteConfirmation.png)
 
 ---
 
 ### Contacts
 
 #### Contact List
-![Contact List](docs/images/contacts-list.png)
+![Contact List](docs/images/ContactsIndexContact%20List.png)
 
 #### No Contacts Found
-![No Contacts Found](docs/images/contacts-empty.png)
+![No Contacts Found](docs/ContactsIndexNoContactsFound.png)
 
 #### Create Contact
-![Create Contact](docs/images/contacts-create.png)
+![Create Contact](docs/ClientsCreate.png)
 
 #### Validation Example
-![Validation](docs/images/validation.png)
-
-#### Edit Contact — Clients Tab (Client List)
-![Edit Contact Clients](docs/images/contacts-edit-clients.png)
+![Validation](docs/ValidationExample.png)
 
 #### Edit Contact — Clients Tab (No Clients Linked)
-![Edit Contact No Clients](docs/images/contacts-edit-no-clients.png)
+![Edit Contact No Clients](docs/ContactsEditClientsTabNoClientsFound.png)
 
 #### Delete Warning
-![Contact Delete Warning](docs/images/contacts-delete-warning.png)
+![Contact Delete Warning](docs/ClientDeleteWarning.png)
 
 #### Unlink Warning
-![Unlink Warning](docs/images/unlink-warning.png)
+![Unlink Warning](docs/UnlinkWarning.png)
 
 ---
 
