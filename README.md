@@ -57,9 +57,6 @@ Notes
 
 ### Clients
 
-#### Client List
-![Client List](docs/Clients%20Index.png)
-
 #### Search
 ![Client Search](docs/ClientsIndexSearch.png)
 
@@ -84,9 +81,6 @@ Notes
 ---
 
 ### Contacts
-
-#### Contact List
-![Contact List](docs/images/ContactsIndexContact%20List.png)
 
 #### No Contacts Found
 ![No Contacts Found](docs/ContactsIndexNoContactsFound.png)
