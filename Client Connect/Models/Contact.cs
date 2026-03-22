@@ -41,7 +41,6 @@ namespace Client_Connect.Models
         public int ClientCount { get; set; }
         public string FullName => $"{Surname} {Name}";
         public bool IsActive => StateId == 1;
-
         public virtual State State { get; set; }
     }
 }

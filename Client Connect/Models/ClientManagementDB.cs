@@ -12,6 +12,7 @@ namespace Client_Connect.Models
         {
         }
 
+        public virtual DbSet<AuditLog> AuditLogs { get; set; }
         public virtual DbSet<ClientContact> ClientContacts { get; set; }
         public virtual DbSet<Client> Clients { get; set; }
         public virtual DbSet<Contact> Contacts { get; set; }

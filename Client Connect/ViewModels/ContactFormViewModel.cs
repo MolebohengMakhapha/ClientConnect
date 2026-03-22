@@ -26,6 +26,8 @@ namespace Client_Connect.ViewModels
 
         public bool IsNew => ContactId == 0;
 
+        public int StateId { get; set; }
+
         public List<LinkedClient> LinkedClients { get; set; } = new List<LinkedClient>();
         public List<Client> AvailableClients { get; set; } = new List<Client>();
     }

@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
+using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
-using System.Configuration;
 using Dapper;
 using Client_Connect.Models;
 
@@ -10,11 +10,13 @@ namespace Client_Connect.Repositories
     public class ContactRepository : IContactRepository
     {
         private readonly string _connectionString;
+        private readonly IAuditRepository _audit;
 
         public ContactRepository()
         {
             _connectionString = ConfigurationManager
                 .ConnectionStrings["ClientManagementDB"].ConnectionString;
+            _audit = new AuditRepository();
         }
 
         private IDbConnection Connection => new SqlConnection(_connectionString);
@@ -59,9 +61,12 @@ namespace Client_Connect.Repositories
                 VALUES (@Name, @Surname, @Email, 1, GETDATE(), GETDATE());
                 SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
+            int newId;
             using (var db = Connection)
-                return db.ExecuteScalar<int>(sql,
-                    new { Name = name, Surname = surname, Email = email });
+                newId = db.ExecuteScalar<int>(sql, new { Name = name, Surname = surname, Email = email });
+
+            _audit.Log("Contacts", newId, "Created", $"Contact '{surname} {name}' created with email {email}.");
+            return newId;
         }
 
         public void Update(int contactId, string name, string surname, string email)
@@ -72,11 +77,12 @@ namespace Client_Connect.Repositories
                        Surname      = @Surname,
                        Email        = @Email,
                        ModifiedDate = GETDATE()
-                WHERE  ContactId = @ContactId;";
+                WHERE  ContactId    = @ContactId;";
 
             using (var db = Connection)
-                db.Execute(sql,
-                    new { Name = name, Surname = surname, Email = email, ContactId = contactId });
+                db.Execute(sql, new { Name = name, Surname = surname, Email = email, ContactId = contactId });
+
+            _audit.Log("Contacts", contactId, "Updated", $"Contact updated to '{surname} {name}', email: {email}.");
         }
 
         public void SoftDelete(int contactId)
@@ -85,10 +91,38 @@ namespace Client_Connect.Repositories
                 UPDATE dbo.Contacts
                 SET    StateId      = 0,
                        ModifiedDate = GETDATE()
-                WHERE  ContactId = @ContactId;";
+                WHERE  ContactId    = @ContactId;";
 
             using (var db = Connection)
                 db.Execute(sql, new { ContactId = contactId });
+
+            _audit.Log("Contacts", contactId, "Deleted", "Contact marked as deleted.");
+        }
+
+        public void Restore(int contactId)
+        {
+            const string sql = @"
+                UPDATE dbo.Contacts
+                SET    StateId      = 1,
+                       ModifiedDate = GETDATE()
+                WHERE  ContactId    = @ContactId;";
+
+            using (var db = Connection)
+                db.Execute(sql, new { ContactId = contactId });
+
+            _audit.Log("Contacts", contactId, "Restored", "Contact restored to active.");
+        }
+
+        public void Delete(int contactId)
+        {
+            const string sql = @"
+                DELETE FROM dbo.ClientContacts WHERE ContactId = @ContactId;
+                DELETE FROM dbo.Contacts        WHERE ContactId = @ContactId;";
+
+            using (var db = Connection)
+                db.Execute(sql, new { ContactId = contactId });
+
+            _audit.Log("Contacts", contactId, "Permanently Deleted", "Contact and all linked records permanently removed.");
         }
 
         public bool EmailExists(string email, int excludeId = 0)
@@ -96,9 +130,9 @@ namespace Client_Connect.Repositories
             const string sql = @"
                 SELECT COUNT(1) FROM dbo.Contacts
                 WHERE Email = @Email AND ContactId <> @ExcludeId;";
+
             using (var db = Connection)
-                return db.ExecuteScalar<int>(sql,
-                    new { Email = email, ExcludeId = excludeId }) > 0;
+                return db.ExecuteScalar<int>(sql, new { Email = email, ExcludeId = excludeId }) > 0;
         }
 
         public IEnumerable<LinkedClient> GetLinkedClients(int contactId)
@@ -119,10 +153,10 @@ namespace Client_Connect.Repositories
             const string sql = @"
                 SELECT  ClientId, Name, ClientCode
                 FROM    dbo.Clients
-                WHERE   ClientId NOT IN (
+                WHERE   StateId = 1
+                AND     ClientId NOT IN (
                             SELECT ClientId FROM dbo.ClientContacts WHERE ContactId = @ContactId
                         )
-                AND     StateId = 1
                 ORDER BY Name ASC;";
 
             using (var db = Connection)
@@ -139,6 +173,8 @@ namespace Client_Connect.Repositories
 
             using (var db = Connection)
                 db.Execute(sql, new { ClientId = clientId, ContactId = contactId });
+
+            _audit.Log("Contacts", contactId, "Linked", $"Client ID {clientId} linked to contact.");
         }
 
         public void UnlinkClient(int contactId, int clientId)
@@ -149,18 +185,8 @@ namespace Client_Connect.Repositories
 
             using (var db = Connection)
                 db.Execute(sql, new { ClientId = clientId, ContactId = contactId });
-        }
 
-        public void Restore(int contactId)
-        {
-            const string sql = @"
-        UPDATE dbo.Contacts
-        SET    StateId      = 1,
-               ModifiedDate = GETDATE()
-        WHERE  ContactId    = @ContactId;";
-
-            using (var db = Connection)
-                db.Execute(sql, new { ContactId = contactId });
+            _audit.Log("Contacts", contactId, "Unlinked", $"Client ID {clientId} unlinked from contact.");
         }
     }
 }

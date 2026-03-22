@@ -17,7 +17,6 @@ namespace Client_Connect.Controllers
         private readonly IClientRepository _clientRepo;
         private readonly IContactRepository _contactRepo;
         private readonly ClientCodeService _codeService;
-
         public ClientsController()
         {
             _clientRepo = new ClientRepository();

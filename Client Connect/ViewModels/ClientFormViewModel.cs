@@ -16,6 +16,7 @@ namespace Client_Connect.ViewModels
         public string Name { get; set; }
 
         public string ClientCode { get; set; }
+        public int StateId { get; set; }
 
         public bool IsNew => ClientId == 0;
 
