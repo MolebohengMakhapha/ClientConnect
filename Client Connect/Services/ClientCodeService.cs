@@ -32,24 +32,44 @@ namespace Client_Connect.Services
 
         private static string BuildAlphaPart(string name)
         {
-            // Remove non-alpha characters and upper-case
+            // Step 1 — Split into words and take the first letter of each word
+            string[] words = name.ToUpperInvariant()
+                                 .Split(new[] { ' ', '-', '_', '.' },
+                                        StringSplitOptions.RemoveEmptyEntries);
+
             string letters = new string(
+                words.Where(w => char.IsLetter(w[0]))
+                     .Select(w => w[0])
+                     .ToArray());
+
+            // Step 2 — If we already have 3 or more initials, take the first 3
+            if (letters.Length >= 3)
+                return letters.Substring(0, 3);
+
+            // Step 3 — If initials gave us fewer than 3 chars, 
+            // pull in more letters from the full name to top up
+            string allLetters = new string(
                 name.ToUpperInvariant()
                     .Where(char.IsLetter)
                     .ToArray());
 
-            if (letters.Length >= 3)
-                return letters.Substring(0, 3);
+            foreach (char c in allLetters)
+            {
+                if (letters.Length >= 3) break;
+                if (!letters.Contains(c))
+                    letters += c;
+            }
 
-            // Pad with A, B, C, ... until we have 3 chars
+            // Step 4 — Still short? Pad with A, B, C...
             char pad = 'A';
             while (letters.Length < 3)
             {
-                letters += pad;
+                if (!letters.Contains(pad))
+                    letters += pad;
                 pad = (char)(pad + 1);
             }
 
-            return letters;
+            return letters.Substring(0, 3);
         }
     }
 }

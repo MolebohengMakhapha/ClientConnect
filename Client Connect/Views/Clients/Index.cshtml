@@ -26,10 +26,11 @@
         <table id="clientsTable" class="table table-hover w-100">
             <thead>
                 <tr>
-                    <th style="text-align:left">Name</th>
-                    <th style="text-align:left">Client Code</th>
+                    <th>Name</th>
+                    <th>Client Code</th>
                     <th style="text-align:center">No. of Linked Contacts</th>
-                    <th style="text-align:left"></th>
+                    <th style="text-align:center">Status</th>
+                    <th style="text-align:center">Options</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -38,7 +39,6 @@
 </div>
 
 @section Scripts {
-    <!-- DataTables CSS & JS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap4.min.css" />
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
@@ -53,49 +53,92 @@
                     type: 'GET',
                     dataSrc: ''
                 },
-                order: [[0, 'asc']],   
+                order: [[0, 'asc']],
+                stateSave: true,
+                stateSaveCallback: function (settings, data) {
+                    CookieHelper.set('DataTables_clientsTable', JSON.stringify(data), 0); // 0 = session
+                },
+                stateLoadCallback: function (settings) {
+                    var saved = CookieHelper.get('DataTables_clientsTable');
+                    return saved ? JSON.parse(saved) : null;
+                },
                 language: {
                     emptyTable: 'No client(s) found.',
                     zeroRecords: 'No client(s) match your search.'
                 },
                 columns: [
-                    { data: 'Name' },
-                    { data: 'ClientCode' },
+                    { data: 'Name', className: 'text-left' },
+                    { data: 'ClientCode', className: 'text-left' },
+                    { data: 'ContactCount', className: 'text-center' },
                     {
-                        data: 'ContactCount',
+                        data: 'StateId',
                         className: 'text-center',
+                        orderable: false,
                         render: function (data) {
-                            return '<span class="badge badge-primary badge-info-count">' + data + '</span>';
+                            return data === 1
+                                ? '<span class="badge badge-success">Active</span>'
+                                : '<span class="badge badge-danger">Deleted</span>';
                         }
                     },
                     {
-                        data: null,
+                        data: 'Options',
+                        className: 'text-center',
                         orderable: false,
                         searchable: false,
-                        width: '164px',
-                        render: function (data, type, row) {
-                            return '<a href="/Clients/Edit/' + row.ClientId + '" class="btn btn-sm btn-outline-secondary">' +
-                                '<i class="fas fa-edit"></i> Edit' +
-                                '</a> ' +
-                                '<button type="button" class="btn btn-sm btn-outline-danger btn-delete-client" ' +
-                                'data-id="' + row.ClientId + '" ' +
-                                'data-name="' + row.Name + '">' +
-                                '<i class="fas fa-trash"></i> Delete' +
-                                '</button>';
+                        createdCell: function (td, cellData) {
+                            $(td).html(cellData);
                         }
                     }
                 ]
             });
         });
 
-        // ── Delete ──
-        $(document).on('click', '.btn-delete-client', function () {
+        // ── Toggle State ────────────────────────────────────────
+        $(document).on('click', '.btn-toggle-client', function (e) {
+            e.preventDefault();
+            var clientId = $(this).data('id');
+            var clientName = $(this).data('name');
+            var currentState = $(this).data('state');
+            var actionLabel = currentState === 1 ? 'Delete' : 'Set Active';
+            var action = currentState === 1 ? 'deactivate' : 'reactivate';
+
+            Swal.fire({
+                title: actionLabel + '?',
+                text: 'Are you sure you want to ' + action + ' "' + clientName + '"?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: currentState === 1 ? '#e0a800' : '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, ' + actionLabel,
+                cancelButtonText: 'Cancel'
+            }).then(function (result) {
+                if (result.isConfirmed) {
+                    $.post('/Clients/ToggleState', { id: clientId }, function (res) {
+                        if (res.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Updated!',
+                                text: '"' + clientName + '" has been ' + action + 'd.',
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(function () { table.ajax.reload(); });
+                        } else {
+                            Swal.fire({ icon: 'error', title: 'Error', text: res.message });
+                        }
+                    });
+                }
+            });
+        });
+
+        // ── Delete ──────────────────────────────────────────────
+        $(document).on('click', '.btn-delete-client', function (e) {
+            e.preventDefault();
             var clientId = $(this).data('id');
             var clientName = $(this).data('name');
 
             Swal.fire({
                 title: 'Delete Client?',
-                text: 'Are you sure you want to delete "' + clientName + '"? This cannot be undone.',
+                text: 'Are you sure you want to delete "' + clientName + '"?',
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#d33',
@@ -107,14 +150,10 @@
                     $.post('/Clients/Delete', { id: clientId }, function (res) {
                         if (res.success) {
                             Swal.fire({
-                                icon: 'success',
-                                title: 'Deleted!',
+                                icon: 'success', title: 'Deleted!',
                                 text: '"' + clientName + '" has been deleted.',
-                                timer: 2000,
-                                showConfirmButton: false
-                            }).then(function () {
-                                table.ajax.reload();   
-                            });
+                                timer: 2000, showConfirmButton: false
+                            }).then(function () { table.ajax.reload(); });
                         } else {
                             Swal.fire({ icon: 'error', title: 'Error', text: res.message });
                         }

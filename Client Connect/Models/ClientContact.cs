@@ -14,6 +14,9 @@ namespace Client_Connect.Models
 
         public int ContactId { get; set; }
 
+        [Column(TypeName = "datetime2")]
+        public DateTime CreatedDate { get; set; }
+
         public virtual Client Client { get; set; }
 
         public virtual Contact Contact { get; set; }

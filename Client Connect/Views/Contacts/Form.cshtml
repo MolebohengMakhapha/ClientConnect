@@ -127,6 +127,16 @@
                     dataSrc: ''
                 },
                 order: [[0, 'asc']],
+                stateSave: true,
+                stateSaveCallback: function (settings, data) {
+                    var key = 'DataTables_linkedClients_' + contactId;
+                    document.cookie = key + '=' + encodeURIComponent(JSON.stringify(data)) + '; path=/';
+                },
+                stateLoadCallback: function (settings) {
+                    var key = 'DataTables_linkedClients_' + contactId;
+                    var match = document.cookie.match(new RegExp('(^| )' + key + '=([^;]+)'));
+                    return match ? JSON.parse(decodeURIComponent(match[2])) : null;
+                },
                 language: {
                     emptyTable: 'No clients found.',
                     zeroRecords: 'No clients match your search.'
@@ -141,10 +151,10 @@
                         width: '80px',
                         render: function (data, type, row) {
                             return '<a href="#" class="text-danger btn-unlink-client" ' +
-                                       'data-client-id="' + row.ClientId + '" ' +
-                                       'data-client-name="' + row.Name + '">' +
-                                       '<i class="fas fa-unlink mr-1"></i>Unlink' +
-                                   '</a>';
+                                'data-client-id="' + row.ClientId + '" ' +
+                                'data-client-name="' + row.Name + '">' +
+                                '<i class="fas fa-unlink mr-1"></i>Unlink' +
+                                '</a>';
                         }
                     }
                 ]
@@ -202,20 +212,46 @@
                 }).join('');
 
                 Swal.fire({
-                    title: 'Link a Client',
-                    html: '<select id="swal-client-select" class="form-control">' + options + '</select>',
+                    title: 'Link Client(s)',
+                    html: '<select id="swal-client-select" class="form-control" multiple="multiple">' + options + '</select>',
                     showCancelButton: true,
                     confirmButtonText: 'Link',
-                    preConfirm: function () { return $('#swal-client-select').val(); }
+                    width: '500px',
+                    didOpen: function () {
+                        $('#swal-client-select').select2({
+                            theme: 'bootstrap4',
+                            placeholder: 'Search and select client(s)...',
+                            allowClear: true,
+                            width: '100%',
+                            dropdownParent: $('.swal2-popup')
+                        });
+                    },
+                    preConfirm: function () {
+                        var selected = $('#swal-client-select').val();
+                        if (!selected || selected.length === 0) {
+                            Swal.showValidationMessage('Please select at least one client.');
+                            return false;
+                        }
+                        return selected;
+                    }
                 }).then(function (result) {
                     if (result.isConfirmed) {
-                        $.post('/Contacts/LinkClient', { contactId: contactId, clientId: result.value }, function (res) {
-                            if (res.success) {
-                                linkedClientsTable.ajax.reload();
-                                Swal.fire({ icon: 'success', title: 'Linked!', timer: 1500, showConfirmButton: false });
-                            } else {
-                                Swal.fire({ icon: 'error', title: 'Error', text: res.message });
-                            }
+                        var selectedIds = result.value;
+                        var requests = selectedIds.map(function (clientId) {
+                            return $.post('/Contacts/LinkClient', { contactId: contactId, clientId: clientId });
+                        });
+
+                        Promise.all(requests).then(function () {
+                            linkedClientsTable.ajax.reload();
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Linked!',
+                                text: selectedIds.length + ' client(s) linked successfully.',
+                                timer: 1500,
+                                showConfirmButton: false
+                            });
+                        }).catch(function () {
+                            Swal.fire({ icon: 'error', title: 'Error', text: 'One or more links could not be created.' });
                         });
                     }
                 });

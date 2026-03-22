@@ -20,12 +20,23 @@ namespace Client_Connect.Models
         [StringLength(100)]
         public string Name { get; set; }
 
+        [Required]
         [StringLength(6)]
         public string ClientCode { get; set; }
 
-        public int ContactCount { get; set; }
+        public int StateId { get; set; }
+
+        [Column(TypeName = "datetime2")]
+        public DateTime CreatedDate { get; set; }
+
+        [Column(TypeName = "datetime2")]
+        public DateTime ModifiedDate { get; set; }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<ClientContact> ClientContacts { get; set; }
+        public int ContactCount { get; set; }
+        public bool IsActive => StateId == 1;
+
+        public virtual State State { get; set; }
     }
 }

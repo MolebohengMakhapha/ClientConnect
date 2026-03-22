@@ -28,11 +28,20 @@ namespace Client_Connect.Models
         [StringLength(255)]
         public string Email { get; set; }
 
-        public int ClientCount { get; set; }
+        public int StateId { get; set; }
 
-        public string FullName => $"{Surname} {Name}";
+        [Column(TypeName = "datetime2")]
+        public DateTime CreatedDate { get; set; }
+
+        [Column(TypeName = "datetime2")]
+        public DateTime ModifiedDate { get; set; }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<ClientContact> ClientContacts { get; set; }
+        public int ClientCount { get; set; }
+        public string FullName => $"{Surname} {Name}";
+        public bool IsActive => StateId == 1;
+
+        public virtual State State { get; set; }
     }
 }

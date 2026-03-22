@@ -26,11 +26,12 @@
         <table id="contactsTable" class="table table-hover w-100">
             <thead>
                 <tr>
-                    <th style="text-align:left">Name</th>
-                    <th style="text-align:left">Surname</th>
-                    <th style="text-align:left">Email Address</th>
+                    <th>Name</th>
+                    <th>Surname</th>
+                    <th>Email Address</th>
                     <th style="text-align:center">No. of Linked Clients</th>
-                    <th style="text-align:left"></th>
+                    <th style="text-align:center">Status</th>
+                    <th style="text-align:center">Options</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -39,7 +40,6 @@
 </div>
 
 @section Scripts {
-    <!-- DataTables CSS & JS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap4.min.css" />
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
@@ -54,50 +54,93 @@
                     type: 'GET',
                     dataSrc: ''
                 },
-                order: [[0, 'asc'], [1, 'asc']],  
+                order: [[1, 'asc'], [0, 'asc']],
+                stateSave: true,
+                stateSaveCallback: function (settings, data) {
+                    CookieHelper.set('DataTables_contactsTable', JSON.stringify(data), 0);
+                },
+                stateLoadCallback: function (settings) {
+                    var saved = CookieHelper.get('DataTables_contactsTable');
+                    return saved ? JSON.parse(saved) : null;
+                },
                 language: {
                     emptyTable: 'No contact(s) found.',
                     zeroRecords: 'No contact(s) match your search.'
                 },
                 columns: [
-                    { data: 'Name' },
-                    { data: 'Surname' },
-                    { data: 'Email' },
+                    { data: 'Name', className: 'text-left' },
+                    { data: 'Surname', className: 'text-left' },
+                    { data: 'Email', className: 'text-left' },
+                    { data: 'ClientCount', className: 'text-center' },
                     {
-                        data: 'ClientCount',
+                        data: 'StateId',
                         className: 'text-center',
+                        orderable: false,
                         render: function (data) {
-                            return '<span class="badge badge-success badge-info-count">' + data + '</span>';
+                            return data === 1
+                                ? '<span class="badge badge-success">Active</span>'
+                                : '<span class="badge badge-danger">Deleted</span>';
                         }
                     },
                     {
-                        data: null,
+                        data: 'Options',
+                        className: 'text-center',
                         orderable: false,
                         searchable: false,
-                        width: '164px',
-                        render: function (data, type, row) {
-                            return '<a href="/Contacts/Edit/' + row.ContactId + '" class="btn btn-sm btn-outline-secondary">' +
-                                '<i class="fas fa-edit"></i> Edit' +
-                                '</a> ' +
-                                '<button type="button" class="btn btn-sm btn-outline-danger btn-delete-contact" ' +
-                                'data-id="' + row.ContactId + '" ' +
-                                'data-name="' + row.Name + ' ' + row.Surname + '">' +
-                                '<i class="fas fa-trash"></i> Delete' +
-                                '</button>';
+                        createdCell: function (td, cellData) {
+                            $(td).html(cellData);
                         }
                     }
                 ]
             });
         });
 
-        // ── Delete ──
-        $(document).on('click', '.btn-delete-contact', function () {
+        // ── Toggle State ────────────────────────────────────────
+        $(document).on('click', '.btn-toggle-contact', function (e) {
+            e.preventDefault();
+            var contactId = $(this).data('id');
+            var contactName = $(this).data('name');
+            var currentState = $(this).data('state');
+            var actionLabel = currentState === 1 ? 'Delete' : 'Set Active';
+            var action = currentState === 1 ? 'deactivate' : 'reactivate';
+
+            Swal.fire({
+                title: actionLabel + '?',
+                text: 'Are you sure you want to ' + action + ' "' + contactName + '"?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: currentState === 1 ? '#e0a800' : '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, ' + actionLabel,
+                cancelButtonText: 'Cancel'
+            }).then(function (result) {
+                if (result.isConfirmed) {
+                    $.post('/Contacts/ToggleState', { id: contactId }, function (res) {
+                        if (res.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Updated!',
+                                text: '"' + contactName + '" has been ' + action + 'd.',
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(function () { table.ajax.reload(); });
+                        } else {
+                            Swal.fire({ icon: 'error', title: 'Error', text: res.message });
+                        }
+                    });
+                }
+            });
+        });
+
+        // ── Delete ──────────────────────────────────────────────
+        $(document).on('click', '.btn-delete-contact', function (e) {
+            e.preventDefault();
             var contactId = $(this).data('id');
             var contactName = $(this).data('name');
 
             Swal.fire({
                 title: 'Delete Contact?',
-                text: 'Are you sure you want to delete "' + contactName + '"? This cannot be undone.',
+                text: 'Are you sure you want to delete "' + contactName + '"?',
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#d33',
@@ -109,14 +152,10 @@
                     $.post('/Contacts/Delete', { id: contactId }, function (res) {
                         if (res.success) {
                             Swal.fire({
-                                icon: 'success',
-                                title: 'Deleted!',
+                                icon: 'success', title: 'Deleted!',
                                 text: '"' + contactName + '" has been deleted.',
-                                timer: 2000,
-                                showConfirmButton: false
-                            }).then(function () {
-                                table.ajax.reload();  
-                            });
+                                timer: 2000, showConfirmButton: false
+                            }).then(function () { table.ajax.reload(); });
                         } else {
                             Swal.fire({ icon: 'error', title: 'Error', text: res.message });
                         }

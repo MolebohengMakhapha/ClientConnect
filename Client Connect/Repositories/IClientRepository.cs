@@ -13,13 +13,12 @@ namespace Client_Connect.Repositories
         Client GetById(int clientId);
         int Create(string name, string clientCode);
         void Update(int clientId, string name);
+        void SoftDelete(int clientId);
+        void Restore(int clientId);
         bool CodeExists(string code);
         IEnumerable<LinkedContact> GetLinkedContacts(int clientId);
         IEnumerable<Contact> GetAvailableContacts(int clientId);
         void LinkContact(int clientId, int contactId);
         void UnlinkContact(int clientId, int contactId);
-        bool NameExists(string name, int excludeId = 0);
-        void Delete(int clientId);
     }
 }
-

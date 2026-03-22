@@ -120,6 +120,17 @@
                     dataSrc: ''
                 },
                 order: [[0, 'asc']],
+                stateSave: true,
+                stateSaveCallback: function (settings, data) {
+                    var key = 'DataTables_linkedContacts_' + clientId;
+                    var expires = '';
+                    document.cookie = key + '=' + encodeURIComponent(JSON.stringify(data)) + expires + '; path=/';
+                },
+                stateLoadCallback: function (settings) {
+                    var key = 'DataTables_linkedContacts_' + clientId;
+                    var match = document.cookie.match(new RegExp('(^| )' + key + '=([^;]+)'));
+                    return match ? JSON.parse(decodeURIComponent(match[2])) : null;
+                },
                 language: {
                     emptyTable: 'No contacts found.',
                     zeroRecords: 'No contacts match your search.'
@@ -139,10 +150,10 @@
                         width: '80px',
                         render: function (data, type, row) {
                             return '<a href="#" class="text-danger btn-unlink-contact" ' +
-                                       'data-contact-id="' + row.ContactId + '" ' +
-                                       'data-contact-name="' + row.Surname + ' ' + row.Name + '">' +
-                                       '<i class="fas fa-unlink mr-1"></i>Unlink' +
-                                   '</a>';
+                                'data-contact-id="' + row.ContactId + '" ' +
+                                'data-contact-name="' + row.Surname + ' ' + row.Name + '">' +
+                                '<i class="fas fa-unlink mr-1"></i>Unlink' +
+                                '</a>';
                         }
                     }
                 ]
@@ -182,22 +193,46 @@
                 }).join('');
 
                 Swal.fire({
-                    title: 'Link a Contact',
-                    html: '<select id="swal-contact-select" class="form-control">' + options + '</select>',
+                    title: 'Link Contact(s)',
+                    html: '<select id="swal-contact-select" class="form-control" multiple="multiple">' + options + '</select>',
                     showCancelButton: true,
                     confirmButtonText: 'Link',
+                    width: '500px',
+                    didOpen: function () {
+                        $('#swal-contact-select').select2({
+                            theme: 'bootstrap4',
+                            placeholder: 'Search and select contact(s)...',
+                            allowClear: true,
+                            width: '100%',
+                            dropdownParent: $('.swal2-popup')
+                        });
+                    },
                     preConfirm: function () {
-                        return $('#swal-contact-select').val();
+                        var selected = $('#swal-contact-select').val();
+                        if (!selected || selected.length === 0) {
+                            Swal.showValidationMessage('Please select at least one contact.');
+                            return false;
+                        }
+                        return selected;
                     }
                 }).then(function (result) {
                     if (result.isConfirmed) {
-                        $.post('/Clients/LinkContact', { clientId: clientId, contactId: result.value }, function (res) {
-                            if (res.success) {
-                                linkedContactsTable.ajax.reload();
-                                Swal.fire({ icon: 'success', title: 'Linked!', timer: 1500, showConfirmButton: false });
-                            } else {
-                                Swal.fire({ icon: 'error', title: 'Error', text: res.message });
-                            }
+                        var selectedIds = result.value;
+                        var requests = selectedIds.map(function (contactId) {
+                            return $.post('/Clients/LinkContact', { clientId: clientId, contactId: contactId });
+                        });
+
+                        Promise.all(requests).then(function () {
+                            linkedContactsTable.ajax.reload();
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Linked!',
+                                text: selectedIds.length + ' contact(s) linked successfully.',
+                                timer: 1500,
+                                showConfirmButton: false
+                            });
+                        }).catch(function () {
+                            Swal.fire({ icon: 'error', title: 'Error', text: 'One or more links could not be created.' });
                         });
                     }
                 });

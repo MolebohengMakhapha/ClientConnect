@@ -1,4 +1,5 @@
-﻿using Client_Connect.Models;
+﻿using Client_Connect.Helpers;
+using Client_Connect.Models;
 using Client_Connect.Repositories;
 using Client_Connect.ViewModels;
 using System;
@@ -62,7 +63,7 @@ namespace Client_Connect.Controllers
         {
             try
             {
-                _contactRepo.Delete(id);
+                _contactRepo.SoftDelete(id);
                 return Json(new { success = true });
             }
             catch (Exception ex)
@@ -157,7 +158,9 @@ namespace Client_Connect.Controllers
                 c.Name,
                 c.Surname,
                 c.Email,
-                c.ClientCount
+                c.ClientCount,
+                c.StateId,
+                Options = Helper.ContactOptions(c.ContactId, c.FullName, c.StateId)
             });
             return Json(data, JsonRequestBehavior.AllowGet);
         }
@@ -171,6 +174,29 @@ namespace Client_Connect.Controllers
                 c.ClientCode
             });
             return Json(data, JsonRequestBehavior.AllowGet);
+        }
+
+        // POST (AJAX): /Contacts/ToggleState
+        [HttpPost]
+        public JsonResult ToggleState(int id)
+        {
+            try
+            {
+                var contact = _contactRepo.GetById(id);
+                if (contact == null)
+                    return Json(new { success = false, message = "Contact not found." });
+
+                if (contact.StateId == 1)
+                    _contactRepo.SoftDelete(id);
+                else
+                    _contactRepo.Restore(id);
+
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
         }
         #endregion
     }

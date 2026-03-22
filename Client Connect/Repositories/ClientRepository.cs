@@ -25,14 +25,17 @@ namespace Client_Connect.Repositories
         public IEnumerable<Client> GetAll()
         {
             const string sql = @"
-                SELECT  c.ClientId,
-                        c.Name,
-                        c.ClientCode,
-                        COUNT(cc.ContactId) AS ContactCount
-                FROM    dbo.Clients c
-                LEFT JOIN dbo.ClientContacts cc ON cc.ClientId = c.ClientId
-                GROUP BY c.ClientId, c.Name, c.ClientCode
-                ORDER BY c.Name ASC;";
+        SELECT  c.ClientId,
+                c.Name,
+                c.ClientCode,
+                c.StateId,
+                s.Description AS StateDescription,
+                COUNT(cc.ContactId) AS ContactCount
+        FROM    dbo.Clients c
+        LEFT JOIN dbo.ClientContacts cc ON cc.ClientId = c.ClientId
+        INNER JOIN dbo.States s         ON s.StateId  = c.StateId
+        GROUP BY c.ClientId, c.Name, c.ClientCode, c.StateId, s.Description
+        ORDER BY c.Name ASC;";
 
             using (var db = Connection)
                 return db.Query<Client>(sql);
@@ -41,9 +44,11 @@ namespace Client_Connect.Repositories
         public Client GetById(int clientId)
         {
             const string sql = @"
-                SELECT ClientId, Name, ClientCode
-                FROM   dbo.Clients
-                WHERE  ClientId = @ClientId;";
+        SELECT  c.ClientId, c.Name, c.ClientCode, c.StateId,
+                s.Description AS StateDescription
+        FROM    dbo.Clients c
+        INNER JOIN dbo.States s ON s.StateId = c.StateId
+        WHERE   c.ClientId = @ClientId;";
 
             using (var db = Connection)
                 return db.QuerySingleOrDefault<Client>(sql, new { ClientId = clientId });
@@ -52,9 +57,9 @@ namespace Client_Connect.Repositories
         public int Create(string name, string clientCode)
         {
             const string sql = @"
-                INSERT INTO dbo.Clients (Name, ClientCode)
-                VALUES (@Name, @ClientCode);
-                SELECT CAST(SCOPE_IDENTITY() AS INT);";
+        INSERT INTO dbo.Clients (Name, ClientCode, StateId, CreatedDate, ModifiedDate)
+        VALUES (@Name, @ClientCode, 1, GETDATE(), GETDATE());
+        SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
             using (var db = Connection)
                 return db.ExecuteScalar<int>(sql, new { Name = name, ClientCode = clientCode });
@@ -63,9 +68,10 @@ namespace Client_Connect.Repositories
         public void Update(int clientId, string name)
         {
             const string sql = @"
-                UPDATE dbo.Clients
-                SET    Name = @Name
-                WHERE  ClientId = @ClientId;";
+        UPDATE dbo.Clients
+        SET    Name         = @Name,
+               ModifiedDate = GETDATE()
+        WHERE  ClientId     = @ClientId;";
 
             using (var db = Connection)
                 db.Execute(sql, new { Name = name, ClientId = clientId });
@@ -103,12 +109,13 @@ namespace Client_Connect.Repositories
         public IEnumerable<Contact> GetAvailableContacts(int clientId)
         {
             const string sql = @"
-                SELECT  ContactId, Name, Surname, Email
-                FROM    dbo.Contacts
-                WHERE   ContactId NOT IN (
-                            SELECT ContactId FROM dbo.ClientContacts WHERE ClientId = @ClientId
-                        )
-                ORDER BY Surname ASC, Name ASC;";
+        SELECT  ContactId, Name, Surname, Email
+        FROM    dbo.Contacts
+        WHERE   StateId   = 1
+        AND     ContactId NOT IN (
+                    SELECT ContactId FROM dbo.ClientContacts WHERE ClientId = @ClientId
+                )
+        ORDER BY Surname ASC, Name ASC;";
 
             using (var db = Connection)
                 return db.Query<Contact>(sql, new { ClientId = clientId });
@@ -136,11 +143,25 @@ namespace Client_Connect.Repositories
                 db.Execute(sql, new { ClientId = clientId, ContactId = contactId });
         }
 
-        public void Delete(int clientId)
+        public void SoftDelete(int clientId)
         {
             const string sql = @"
-        DELETE FROM dbo.ClientContacts WHERE ClientId = @ClientId;
-        DELETE FROM dbo.Clients        WHERE ClientId = @ClientId;";
+        UPDATE dbo.Clients
+        SET    StateId      = 0,
+               ModifiedDate = GETDATE()
+        WHERE  ClientId     = @ClientId;";
+
+            using (var db = Connection)
+                db.Execute(sql, new { ClientId = clientId });
+        }
+
+        public void Restore(int clientId)
+        {
+            const string sql = @"
+        UPDATE dbo.Clients
+        SET    StateId      = 1,
+               ModifiedDate = GETDATE()
+        WHERE  ClientId     = @ClientId;";
 
             using (var db = Connection)
                 db.Execute(sql, new { ClientId = clientId });

@@ -15,6 +15,7 @@ namespace Client_Connect.Models
         public virtual DbSet<ClientContact> ClientContacts { get; set; }
         public virtual DbSet<Client> Clients { get; set; }
         public virtual DbSet<Contact> Contacts { get; set; }
+        public virtual DbSet<State> States { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
@@ -31,6 +32,16 @@ namespace Client_Connect.Models
             modelBuilder.Entity<Contact>()
                 .HasMany(e => e.ClientContacts)
                 .WithRequired(e => e.Contact)
+                .WillCascadeOnDelete(false);
+
+            modelBuilder.Entity<State>()
+                .HasMany(e => e.Clients)
+                .WithRequired(e => e.State)
+                .WillCascadeOnDelete(false);
+
+            modelBuilder.Entity<State>()
+                .HasMany(e => e.Contacts)
+                .WithRequired(e => e.State)
                 .WillCascadeOnDelete(false);
         }
     }

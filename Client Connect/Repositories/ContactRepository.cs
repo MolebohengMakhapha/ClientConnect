@@ -1,12 +1,9 @@
-﻿using Client_Connect.Models;
-using Dapper;
-using System;
-using System.Collections.Generic;
-using System.Configuration;
+﻿using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
-using System.Linq;
-using System.Web;
+using System.Configuration;
+using Dapper;
+using Client_Connect.Models;
 
 namespace Client_Connect.Repositories
 {
@@ -29,10 +26,13 @@ namespace Client_Connect.Repositories
                         ct.Name,
                         ct.Surname,
                         ct.Email,
+                        ct.StateId,
+                        s.Description AS StateDescription,
                         COUNT(cc.ClientId) AS ClientCount
                 FROM    dbo.Contacts ct
                 LEFT JOIN dbo.ClientContacts cc ON cc.ContactId = ct.ContactId
-                GROUP BY ct.ContactId, ct.Name, ct.Surname, ct.Email
+                INNER JOIN dbo.States s         ON s.StateId   = ct.StateId
+                GROUP BY ct.ContactId, ct.Name, ct.Surname, ct.Email, ct.StateId, s.Description
                 ORDER BY ct.Surname ASC, ct.Name ASC;";
 
             using (var db = Connection)
@@ -42,9 +42,11 @@ namespace Client_Connect.Repositories
         public Contact GetById(int contactId)
         {
             const string sql = @"
-                SELECT ContactId, Name, Surname, Email
-                FROM   dbo.Contacts
-                WHERE  ContactId = @ContactId;";
+                SELECT  ct.ContactId, ct.Name, ct.Surname, ct.Email, ct.StateId,
+                        s.Description AS StateDescription
+                FROM    dbo.Contacts ct
+                INNER JOIN dbo.States s ON s.StateId = ct.StateId
+                WHERE   ct.ContactId = @ContactId;";
 
             using (var db = Connection)
                 return db.QuerySingleOrDefault<Contact>(sql, new { ContactId = contactId });
@@ -53,23 +55,40 @@ namespace Client_Connect.Repositories
         public int Create(string name, string surname, string email)
         {
             const string sql = @"
-                INSERT INTO dbo.Contacts (Name, Surname, Email)
-                VALUES (@Name, @Surname, @Email);
+                INSERT INTO dbo.Contacts (Name, Surname, Email, StateId, CreatedDate, ModifiedDate)
+                VALUES (@Name, @Surname, @Email, 1, GETDATE(), GETDATE());
                 SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
             using (var db = Connection)
-                return db.ExecuteScalar<int>(sql, new { Name = name, Surname = surname, Email = email });
+                return db.ExecuteScalar<int>(sql,
+                    new { Name = name, Surname = surname, Email = email });
         }
 
         public void Update(int contactId, string name, string surname, string email)
         {
             const string sql = @"
                 UPDATE dbo.Contacts
-                SET    Name = @Name, Surname = @Surname, Email = @Email
+                SET    Name         = @Name,
+                       Surname      = @Surname,
+                       Email        = @Email,
+                       ModifiedDate = GETDATE()
                 WHERE  ContactId = @ContactId;";
 
             using (var db = Connection)
-                db.Execute(sql, new { Name = name, Surname = surname, Email = email, ContactId = contactId });
+                db.Execute(sql,
+                    new { Name = name, Surname = surname, Email = email, ContactId = contactId });
+        }
+
+        public void SoftDelete(int contactId)
+        {
+            const string sql = @"
+                UPDATE dbo.Contacts
+                SET    StateId      = 0,
+                       ModifiedDate = GETDATE()
+                WHERE  ContactId = @ContactId;";
+
+            using (var db = Connection)
+                db.Execute(sql, new { ContactId = contactId });
         }
 
         public bool EmailExists(string email, int excludeId = 0)
@@ -78,7 +97,8 @@ namespace Client_Connect.Repositories
                 SELECT COUNT(1) FROM dbo.Contacts
                 WHERE Email = @Email AND ContactId <> @ExcludeId;";
             using (var db = Connection)
-                return db.ExecuteScalar<int>(sql, new { Email = email, ExcludeId = excludeId }) > 0;
+                return db.ExecuteScalar<int>(sql,
+                    new { Email = email, ExcludeId = excludeId }) > 0;
         }
 
         public IEnumerable<LinkedClient> GetLinkedClients(int contactId)
@@ -102,6 +122,7 @@ namespace Client_Connect.Repositories
                 WHERE   ClientId NOT IN (
                             SELECT ClientId FROM dbo.ClientContacts WHERE ContactId = @ContactId
                         )
+                AND     StateId = 1
                 ORDER BY Name ASC;";
 
             using (var db = Connection)
@@ -113,8 +134,8 @@ namespace Client_Connect.Repositories
             const string sql = @"
                 IF NOT EXISTS (SELECT 1 FROM dbo.ClientContacts
                                WHERE ClientId = @ClientId AND ContactId = @ContactId)
-                    INSERT INTO dbo.ClientContacts (ClientId, ContactId)
-                    VALUES (@ClientId, @ContactId);";
+                    INSERT INTO dbo.ClientContacts (ClientId, ContactId, CreatedDate)
+                    VALUES (@ClientId, @ContactId, GETDATE());";
 
             using (var db = Connection)
                 db.Execute(sql, new { ClientId = clientId, ContactId = contactId });
@@ -130,11 +151,13 @@ namespace Client_Connect.Repositories
                 db.Execute(sql, new { ClientId = clientId, ContactId = contactId });
         }
 
-        public void Delete(int contactId)
+        public void Restore(int contactId)
         {
             const string sql = @"
-        DELETE FROM dbo.ClientContacts WHERE ContactId = @ContactId;
-        DELETE FROM dbo.Contacts        WHERE ContactId = @ContactId;";
+        UPDATE dbo.Contacts
+        SET    StateId      = 1,
+               ModifiedDate = GETDATE()
+        WHERE  ContactId    = @ContactId;";
 
             using (var db = Connection)
                 db.Execute(sql, new { ContactId = contactId });
