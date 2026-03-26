@@ -92,21 +92,12 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
-        window.CookieHelper = {
-            set: function (name, value, days) {
-                var expires = '';
-                if (days) {
-                    var d = new Date();
-                    d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
-                    expires = '; expires=' + d.toUTCString();
-                }
-                document.cookie = name + '=' + encodeURIComponent(value) + expires + '; path=/';
-            },
-            get: function (name) {
-                var match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-                return match ? decodeURIComponent(match[2]) : null;
+        document.cookie.split(';').forEach(function (cookie) {
+            var name = cookie.split('=')[0].trim();
+            if (name.indexOf('DataTables_') === 0) {
+                document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
             }
-        };
+        });
     </script>
 
     @RenderSection("Scripts", required: false)

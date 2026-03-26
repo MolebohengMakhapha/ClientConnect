@@ -129,13 +129,11 @@
                 order: [[0, 'asc']],
                 stateSave: true,
                 stateSaveCallback: function (settings, data) {
-                    var key = 'DataTables_linkedClients_' + contactId;
-                    document.cookie = key + '=' + encodeURIComponent(JSON.stringify(data)) + '; path=/';
+                    localStorage.setItem('DataTables_linkedClients_' + contactId, JSON.stringify(data));
                 },
                 stateLoadCallback: function (settings) {
-                    var key = 'DataTables_linkedClients_' + contactId;
-                    var match = document.cookie.match(new RegExp('(^| )' + key + '=([^;]+)'));
-                    return match ? JSON.parse(decodeURIComponent(match[2])) : null;
+                    var saved = localStorage.getItem('DataTables_linkedClients_' + contactId);
+                    return saved ? JSON.parse(saved) : null;
                 },
                 language: {
                     emptyTable: 'No clients found.',

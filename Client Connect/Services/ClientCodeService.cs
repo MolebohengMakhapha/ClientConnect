@@ -30,37 +30,54 @@ namespace Client_Connect.Services
                 $"Could not generate a unique client code for alpha prefix '{alpha}'.");
         }
 
+        private static readonly HashSet<string> ConnectorWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "and", "or", "the", "of", "in", "at", "by", "for",
+            "nor", "but", "so", "yet", "a", "an", "&"
+        };
+
         private static string BuildAlphaPart(string name)
         {
-            // Step 1 — Split into words and take the first letter of each word
-            string[] words = name.ToUpperInvariant()
-                                 .Split(new[] { ' ', '-', '_', '.' },
-                                        StringSplitOptions.RemoveEmptyEntries);
+            string cleaned = new string(name.Where(c => char.IsLetterOrDigit(c) || c == ' ').ToArray());
 
-            string letters = new string(
-                words.Where(w => char.IsLetter(w[0]))
-                     .Select(w => w[0])
-                     .ToArray());
+            string[] words = cleaned.ToUpperInvariant()
+                                     .Split(new[] { ' ', '-', '_', '.' },
+                                            StringSplitOptions.RemoveEmptyEntries);
 
-            // Step 2 — If we already have 3 or more initials, take the first 3
+            string[] meaningful = words
+                .Where(w => char.IsLetter(w[0]) && !ConnectorWords.Contains(w))
+                .ToArray();
+
+            string letters = new string(meaningful.Select(w => w[0]).ToArray());
+
             if (letters.Length >= 3)
                 return letters.Substring(0, 3);
 
-            // Step 3 — If initials gave us fewer than 3 chars, 
-            // pull in more letters from the full name to top up
-            string allLetters = new string(
-                name.ToUpperInvariant()
-                    .Where(char.IsLetter)
-                    .ToArray());
-
-            foreach (char c in allLetters)
+            if (meaningful.Length >= 2)
             {
-                if (letters.Length >= 3) break;
-                if (!letters.Contains(c))
-                    letters += c;
+                string secondWord = meaningful[1];
+                foreach (char c in secondWord)
+                {
+                    if (letters.Length >= 3) break;
+                    if (!letters.Contains(c))
+                        letters += c;
+                }
             }
 
-            // Step 4 — Still short? Pad with A, B, C...
+            if (letters.Length < 3)
+            {
+                string allLetters = new string(
+                    cleaned.ToUpperInvariant()
+                           .Where(char.IsLetter)
+                           .ToArray());
+                foreach (char c in allLetters)
+                {
+                    if (letters.Length >= 3) break;
+                    if (!letters.Contains(c))
+                        letters += c;
+                }
+            }
+
             char pad = 'A';
             while (letters.Length < 3)
             {
